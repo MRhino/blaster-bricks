@@ -1,0 +1,8 @@
+# Blaster Bricks
+
+- Every push to `main` must bump the `version` in `package.json` (minor: 0.1.0 → 0.2.0). The start screen shows `v<major>.<minor> · <commit>` so the user can confirm they're on the latest build.
+- Deploys: Vercel auto-deploys from `main`. Confirm each push: deployment Ready, GitHub check green, version string present in the live bundle.
+- `src/sim.ts` is pure (no DOM). Any balance change must be checked with `npm run bot -- 30` (casual / decent / sharp bots) and the numbers reported.
+- Difficulty is ONE scalar (`pressureFor`): level growth + running skill average + last level. Don't stack extra multipliers.
+- Visual check: `npm run build && npx vite preview`, then screenshot with a headless Chrome. `?shot=LEVEL&ang=RAD&freeze=MS` starts a level, fires, and freezes the frame.
+- The service worker must never reload mid-level (`reloadPending` in main.ts).

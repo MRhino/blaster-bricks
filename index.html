@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0624" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Blaster Bricks" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <title>Blaster Bricks</title>
+  </head>
+  <body>
+    <canvas id="cv"></canvas>
+    <div id="hud" class="hidden">
+      <div class="lvl"><small>LEVEL</small><span id="level">1</span></div>
+      <div class="prog"><div class="bar"><i id="progbar"></i></div><small id="rows">rows</small></div>
+      <button id="pause" aria-label="Pause">II</button>
+    </div>
+    <div id="controls" class="hidden">
+      <span id="ff">»</span>
+      <button id="recall" aria-label="Bring balls home">⤓</button>
+    </div>
+    <div id="banner"></div>
+
+    <div id="menu" class="screen">
+      <h1><span>BLASTER</span><span>BRICKS</span></h1>
+      <p class="tag">Aim. Release. Watch it glow.</p>
+      <button id="play" class="big">PLAY</button>
+      <div id="menu-stats"></div>
+      <p class="help">Drag to aim, release to fire. Clear every brick before one reaches the line.<br />
+        <b class="pl">⟷</b> laser &nbsp; <b class="pm">×3</b> multiply &nbsp; <b class="pr">⟳</b> redirect &nbsp; <b class="pe">+1</b> extra ball</p>
+      <div class="row">
+        <button id="sound" class="chip">🔊 Sound on</button>
+        <button id="reset" class="chip">Reset progress</button>
+      </div>
+      <div id="version"><span id="version-text"></span><button id="refresh" class="chip">↻ Check for update</button></div>
+    </div>
+
+    <div id="result" class="screen hidden">
+      <h2 id="r-title">LEVEL CLEAR</h2>
+      <div id="r-score"><span id="r-pct">0</span><small>EFFECTIVENESS</small></div>
+      <div id="r-bars"></div>
+      <div id="r-skill"></div>
+      <div id="r-next"></div>
+      <button id="r-go" class="big">NEXT</button>
+      <button id="r-menu" class="chip">Menu</button>
+    </div>
+
+    <div id="paused" class="screen hidden">
+      <h2>PAUSED</h2>
+      <button id="resume" class="big">RESUME</button>
+      <button id="restart" class="chip">Restart level</button>
+      <button id="quit" class="chip">Menu</button>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
