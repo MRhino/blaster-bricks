@@ -89,6 +89,7 @@ function startLevel(resume = false) {
   bricksAtEnd = Math.max(1, game.bricksLeft());
   persistRun();
   renderer.reset(game);
+  lastPhase = game.phase;
   mode = 'play';
   show(null);
   $('level').textContent = String(progress.level);
@@ -269,12 +270,12 @@ cv.addEventListener('pointercancel', () => { aiming = null; });
 let last = performance.now();
 let acc = 0;
 let flyTime = 0;
+let lastPhase: Game['phase'] = 'aim';
 function frame(now: number) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (game && mode === 'play') {
-    const wasPhase = game.phase;
     if (game.phase === 'fly') {
       flyTime += dt;
       const speed = Renderer.speedFor(game.turnTime);
@@ -289,6 +290,10 @@ function frame(now: number) {
         if (game.phase !== 'fly') break;
       }
     } else { acc = 0; flyTime = 0; $('ff').classList.remove('on'); $('recall').classList.remove('on'); }
+    // Compare with the previous frame, not the start of this one: recall()
+    // ends the volley from a button handler, between frames.
+    const wasPhase = lastPhase;
+    lastPhase = game.phase;
     if (wasPhase === 'fly' && game.phase !== 'fly') {
       updateHud();
       persistRun();
@@ -327,6 +332,7 @@ const idleGame = new Game(generateLevel(3, 0.9, 7));
 
 // ---------- debug hooks (?shot=LEVEL, ?bot) for headless screenshots ----------
 const qs = new URLSearchParams(location.search);
+if (qs.has('debug')) (window as any).__bb = { get game() { return game; }, get mode() { return mode; } };
 if (qs.has('shot')) {
   progress = { ...fresh(), level: Number(qs.get('shot')) || 5, history: [0.7, 0.6, 0.8], lastEff: 0.7, best: 5 };
   startLevel();

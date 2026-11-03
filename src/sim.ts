@@ -306,7 +306,10 @@ export class Game {
         this.launchTimer += LAUNCH_GAP;
       }
     }
-    for (const b of this.balls) if (!b.done) this.moveBall(b, dt);
+    for (const b of this.balls) {
+      if (!b.done) this.moveBall(b, dt);
+      if (this.phase !== 'fly') return; // level ended mid-volley
+    }
     if (this.balls.some(b => b.done)) this.balls = this.balls.filter(b => !b.done);
     if (this.toLaunch === 0 && this.balls.length === 0) this.endTurn();
     // Safety valve: nothing should take this long.
@@ -443,6 +446,10 @@ export class Game {
     if (cell.hp <= 0) {
       this.board[r][c] = null;
       this.events.push({ t: 'break', id: cell.id, x: cc.x, y: cc.y, max: cell.max });
+      // Last brick of the level: win now, don't make the player wait for balls to land.
+      if (this.phase === 'fly' && this.queue.length === 0 && this.bricksLeft() === 0) {
+        this.toLaunch = 0; this.balls = []; this.turns++; this.phase = 'won';
+      }
     } else this.events.push({ t: 'hit', id: cell.id, x: cc.x, y: cc.y, hp: cell.hp });
   }
 
