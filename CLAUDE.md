@@ -6,3 +6,4 @@
 - Difficulty is ONE scalar (`pressureFor`): level growth + running skill average + last level. Don't stack extra multipliers.
 - Visual check: `npm run build && npx vite preview`, then screenshot with a headless Chrome. `?shot=LEVEL&ang=RAD&freeze=MS` starts a level, fires, and freezes the frame.
 - The service worker must never reload mid-level (`reloadPending` in main.ts).
+- Player progress must survive every deploy (`src/progress.ts`): never rename the `bb-save-v1` key; change the save shape only by bumping `SCHEMA` and adding a `MIGRATIONS` step. The mid-level run (`bb-run`) is disposable — if `GameSnapshot` or the board shape changes, bump its `v` so old runs are dropped, never progress.

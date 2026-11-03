@@ -1,9 +1,9 @@
 import { registerSW } from 'virtual:pwa-register';
 import './style.css';
-import { Game, generateLevel, pressureFor, effectiveness, FLOOR_Y, DT, type LevelSpec } from './sim';
+import { Game, generateLevel, pressureFor, effectiveness, FLOOR_Y, DT, ROWS, COLS, type LevelSpec } from './sim';
 import { Renderer } from './render';
 import { sfx, unlock, isMuted, setMuted } from './audio';
-import { load, save, skillOf, type Save } from './progress';
+import { load, save, skillOf, fresh, saveRun, loadRun, clearRun, requestPersist, type Save } from './progress';
 
 declare const __APP_VERSION__: string, __COMMIT__: string;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -53,17 +53,45 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+let bricksAtEnd = 1;
+
 // ---------- levels ----------
-function startLevel() {
-  const skill = skillOf(progress);
-  const pressure = pressureFor(progress.level, progress.lastEff, skill);
-  spec = generateLevel(progress.level, pressure, progress.attempt);
-  game = new Game(spec);
+/** A level saved mid-play that still fits this build's board, or null. */
+function resumable(): Game | null {
+  const snap = loadRun(progress.level, progress.attempt);
+  if (!snap) return null;
+  try {
+    const okShape = snap.board.length === ROWS && snap.board.every(r => r.length === COLS)
+      && snap.queue.every(r => r.length === COLS);
+    if (!okShape) throw new Error('board shape changed');
+    const g = Game.restore(snap);
+    if (g.bricksLeft() === 0 && !g.rowsLeft()) throw new Error('already finished');
+    return g;
+  } catch { clearRun(); return null; }
+}
+
+const debugShot = new URLSearchParams(location.search).has('shot');
+function persistRun() {
+  if (debugShot) return;
+  if (game && game.phase === 'aim' && mode !== 'result') saveRun(progress.level, progress.attempt, game.snapshot());
+}
+
+function startLevel(resume = false) {
+  const restored = resume ? resumable() : null;
+  if (restored) { game = restored; spec = restored.spec; }
+  else {
+    const skill = skillOf(progress);
+    const pressure = pressureFor(progress.level, progress.lastEff, skill);
+    spec = generateLevel(progress.level, pressure, progress.attempt);
+    game = new Game(spec);
+  }
+  bricksAtEnd = Math.max(1, game.bricksLeft());
+  persistRun();
   renderer.reset(game);
   mode = 'play';
   show(null);
   $('level').textContent = String(progress.level);
-  banner(`LEVEL ${progress.level}`);
+  banner(restored ? `LEVEL ${progress.level} · RESUMED` : `LEVEL ${progress.level}`);
   updateHud();
 }
 
@@ -71,6 +99,7 @@ function finishLevel() {
   if (!game || !spec) return;
   const r = game.result();
   const e = effectiveness(r);
+  clearRun();
   const before = skillOf(progress);
   progress.history.push(e.score);
   if (progress.history.length > 200) progress.history.splice(0, progress.history.length - 200);
@@ -112,7 +141,8 @@ function show(id: 'menu' | 'result' | 'paused' | null) {
 }
 function renderMenu() {
   const skill = skillOf(progress);
-  $('play').textContent = progress.level > 1 ? `PLAY LEVEL ${progress.level}` : 'PLAY';
+  const canResume = !!resumable();
+  $('play').textContent = canResume ? `RESUME LEVEL ${progress.level}` : progress.level > 1 ? `PLAY LEVEL ${progress.level}` : 'PLAY';
   $('menu-stats').innerHTML = `<div><b>${progress.level}</b>LEVEL</div><div><b>${skill === null ? '—' : Math.round(skill * 100) + '%'}</b>SKILL AVG</div><div><b>${progress.history.length}</b>PLAYED</div>`;
   $('sound').textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on';
 }
@@ -132,7 +162,6 @@ function updateHud() {
   const doneFrac = game.rowsLeft() ? spawned / total * 0.7 : 0.7 + 0.3 * (1 - bricks / Math.max(1, bricksAtEnd));
   $('progbar').style.width = `${Math.round(doneFrac * 100)}%`;
 }
-let bricksAtEnd = 1;
 
 function setPaused(p: boolean) {
   if (p && mode === 'play') { mode = 'paused'; show('paused'); }
@@ -140,17 +169,17 @@ function setPaused(p: boolean) {
 }
 
 const tapped = (id: string, fn: () => void) => $(id).addEventListener('click', () => { unlock(); sfx.tap(); fn(); });
-tapped('play', startLevel);
+tapped('play', () => { requestPersist(); startLevel(true); });
 tapped('r-go', () => { if (reloadPending) location.reload(); else startLevel(); });
 tapped('r-menu', () => { if (reloadPending) location.reload(); else { mode = 'menu'; show('menu'); } });
 tapped('resume', () => setPaused(false));
-tapped('restart', () => startLevel());
+tapped('restart', () => { clearRun(); startLevel(); });
 tapped('quit', () => { mode = 'menu'; game = null; show('menu'); if (reloadPending) location.reload(); });
 tapped('sound', () => { setMuted(!isMuted()); renderMenu(); });
 tapped('reset', () => {
   if (!confirm('Reset level and skill history?')) return;
-  progress = { level: 1, history: [], lastEff: null, attempt: 0, best: 1 };
-  save(progress); renderMenu();
+  progress = fresh();
+  save(progress); clearRun(); renderMenu();
 });
 $('pause').addEventListener('pointerdown', e => { e.stopPropagation(); setPaused(true); });
 $('recall').addEventListener('pointerdown', e => { e.stopPropagation(); game?.recall(); });
@@ -223,6 +252,7 @@ function frame(now: number) {
     } else { acc = 0; flyTime = 0; $('ff').classList.remove('on'); $('recall').classList.remove('on'); }
     if (wasPhase === 'fly' && game.phase !== 'fly') {
       updateHud();
+      persistRun();
       if (game.phase === 'aim' && game.lowestBrickRow() >= 8) banner('CAREFUL');
       if (game.phase === 'aim' && !game.rowsLeft() && game.bricksLeft() <= 3 && bricksAtEnd > 3) banner('ALMOST!');
       if (game.rowsLeft() > 0) bricksAtEnd = Math.max(1, game.bricksLeft());
@@ -259,7 +289,7 @@ const idleGame = new Game(generateLevel(3, 0.9, 7));
 // ---------- debug hooks (?shot=LEVEL, ?bot) for headless screenshots ----------
 const qs = new URLSearchParams(location.search);
 if (qs.has('shot')) {
-  progress = { level: Number(qs.get('shot')) || 5, history: [0.7, 0.6, 0.8], lastEff: 0.7, attempt: 0, best: 5 };
+  progress = { ...fresh(), level: Number(qs.get('shot')) || 5, history: [0.7, 0.6, 0.8], lastEff: 0.7, best: 5 };
   startLevel();
   const ang = Number(qs.get('ang') ?? -1.15);
   setTimeout(() => game?.launch(Math.cos(ang), Math.sin(ang)), 300);

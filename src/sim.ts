@@ -66,6 +66,15 @@ export interface LevelResult {
   hits: number;
 }
 
+export interface GameSnapshot {
+  v: 1;
+  spec: LevelSpec;
+  board: (Cell | null)[][];
+  queue: (Cell | null)[][];
+  pool: number; launchX: number; turns: number; hits: number;
+  ballsFired: number; destroyedHp: number; closestGap: number;
+}
+
 // ---------- RNG ----------
 export function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -208,6 +217,25 @@ export class Game {
       this.board[spec.initialRows - 1 - i] = row;
     }
     this.updateGap();
+  }
+
+  /** Plain-JSON state between turns, for resuming a level after the app is closed. */
+  snapshot(): GameSnapshot {
+    return {
+      v: 1, spec: this.spec, board: this.board, queue: this.queue, pool: this.pool,
+      launchX: this.launchX, turns: this.turns, hits: this.hits, ballsFired: this.ballsFired,
+      destroyedHp: this.destroyedHp, closestGap: this.closestGap,
+    };
+  }
+
+  static restore(s: GameSnapshot): Game {
+    const g = new Game(s.spec);
+    g.board = s.board.map(r => r.map(c => (c ? { ...c } : null)));
+    g.queue = s.queue.map(r => r.map(c => (c ? { ...c } : null)));
+    g.pool = s.pool; g.launchX = s.launchX; g.turns = s.turns; g.hits = s.hits;
+    g.ballsFired = s.ballsFired; g.destroyedHp = s.destroyedHp; g.closestGap = s.closestGap;
+    g.rng = mulberry32((s.spec.seed ^ 0x9e3779b9) + s.turns * 7919);
+    return g;
   }
 
   /** Deep copy for lookahead (the bot). The copy gets its own RNG stream. */
