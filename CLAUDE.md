@@ -7,3 +7,4 @@
 - Visual check: `npm run build && npx vite preview`, then screenshot with a headless Chrome. `?shot=LEVEL&ang=RAD&freeze=MS` starts a level, fires, and freezes the frame.
 - The service worker must never reload mid-level (`reloadPending` in main.ts).
 - Player progress must survive every deploy (`src/progress.ts`): never rename the `bb-save-v1` key; change the save shape only by bumping `SCHEMA` and adding a `MIGRATIONS` step. The mid-level run (`bb-run`) is disposable — if `GameSnapshot` or the board shape changes, bump its `v` so old runs are dropped, never progress.
+- Cloud save: `api/save.ts` stores one private Vercel Blob per save ID (`saves/<ID>.json`, store `blaster-bricks-saves`, syd1). The server never lets a save with less progress overwrite one with more (`isAhead` in `src/saveid.ts`). The client syncs once on launch and after each level — never per frame; count `/api/` requests when testing.

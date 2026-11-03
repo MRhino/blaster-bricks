@@ -3,6 +3,7 @@ import './style.css';
 import { Game, generateLevel, pressureFor, effectiveness, FLOOR_Y, DT, ROWS, COLS, type LevelSpec } from './sim';
 import { Renderer } from './render';
 import { sfx, unlock, isMuted, setMuted } from './audio';
+import { cloudId, newCloudId, displayId, lastSynced, backup, restore } from './cloud';
 import { load, save, skillOf, fresh, saveRun, loadRun, clearRun, requestPersist, type Save } from './progress';
 
 declare const __APP_VERSION__: string, __COMMIT__: string;
@@ -108,6 +109,7 @@ function finishLevel() {
   if (r.cleared) { progress.level++; progress.attempt = 0; progress.best = Math.max(progress.best, progress.level); }
   else progress.attempt++;
   save(progress);
+  void syncNow();
   const after = skillOf(progress)!;
   const nextPressure = pressureFor(progress.level, progress.lastEff, after);
   const samePressure = pressureFor(progress.level, null, null); // a neutral player's level
@@ -144,7 +146,27 @@ function renderMenu() {
   const canResume = !!resumable();
   $('play').textContent = canResume ? `RESUME LEVEL ${progress.level}` : progress.level > 1 ? `PLAY LEVEL ${progress.level}` : 'PLAY';
   $('menu-stats').innerHTML = `<div><b>${progress.level}</b>LEVEL</div><div><b>${skill === null ? '—' : Math.round(skill * 100) + '%'}</b>SKILL AVG</div><div><b>${progress.history.length}</b>PLAYED</div>`;
+  renderCloud();
   $('sound').textContent = isMuted() ? '🔇 Sound off' : '🔊 Sound on';
+}
+// ---------- cloud save ----------
+let syncState: 'idle' | 'syncing' | 'offline' = 'idle';
+function renderCloud() {
+  $('cloud-id').textContent = displayId();
+  const t = lastSynced();
+  const ago = (ms: number) => ms < 60e3 ? 'just now' : ms < 3600e3 ? `${Math.round(ms / 60e3)} min ago` : ms < 86400e3 ? `${Math.round(ms / 3600e3)} h ago` : `${Math.round(ms / 86400e3)} days ago`;
+  $('cloud-status').textContent = syncState === 'syncing' ? 'Backing up…'
+    : syncState === 'offline' ? 'Offline. Will back up when connected.'
+    : t ? `Backed up ${ago(Date.now() - t)}` : 'Not backed up yet';
+}
+async function syncNow() {
+  if (debugShot) return;
+  syncState = 'syncing'; if (mode === 'menu') renderCloud();
+  const before = lastSynced();
+  const newer = await backup();
+  syncState = lastSynced() > before ? 'idle' : 'offline';
+  if (newer) progress = newer; // the cloud copy was further along
+  if (mode === 'menu') renderMenu();
 }
 let bannerTimer = 0;
 function banner(text: string) {
@@ -175,9 +197,26 @@ tapped('r-menu', () => { if (reloadPending) location.reload(); else { mode = 'me
 tapped('resume', () => setPaused(false));
 tapped('restart', () => { clearRun(); startLevel(); });
 tapped('quit', () => { mode = 'menu'; game = null; show('menu'); if (reloadPending) location.reload(); });
+tapped('cloud-copy', async () => {
+  try { await navigator.clipboard.writeText(displayId()); $('cloud-copy').textContent = 'Copied ✓'; }
+  catch { $('cloud-copy').textContent = 'Select & copy'; }
+  setTimeout(() => ($('cloud-copy').textContent = 'Copy'), 1800);
+});
+tapped('cloud-restore', async () => {
+  const input = prompt('Enter the save ID from your other device (BB-XXXX-XXXX-XXXX-XXXX):');
+  if (!input) return;
+  $('cloud-status').textContent = 'Restoring…';
+  const r = await restore(input);
+  if (!r.ok) { alert(r.reason); renderCloud(); return; }
+  progress = load();
+  renderMenu();
+  alert(`Save restored: level ${r.level}. This device now backs up to that ID.`);
+});
 tapped('sound', () => { setMuted(!isMuted()); renderMenu(); });
 tapped('reset', () => {
-  if (!confirm('Reset level and skill history?')) return;
+  const oldId = displayId();
+  if (!confirm(`Reset level and skill history?\n\nYour current progress stays in the cloud under ${oldId} if you ever want it back.`)) return;
+  newCloudId();
   progress = fresh();
   save(progress); clearRun(); renderMenu();
 });
@@ -297,3 +336,6 @@ if (qs.has('shot')) {
 } else show('menu');
 
 requestAnimationFrame(frame);
+
+cloudId();
+void syncNow(); // existing players' saves go up on first launch of this build

@@ -1,0 +1,75 @@
+// Cloud backup: the save is mirrored to /api/save under a random save ID that
+// lives on this device. Typing that ID on another device downloads the save.
+// Everything still works offline; uploads retry when the connection returns.
+import { ID_ALPHABET, normalizeId, formatId, isAhead } from './saveid';
+import { load, save, clearRun, type Save } from './progress';
+
+const ID_KEY = 'bb-cloud-id';
+const SYNC_KEY = 'bb-cloud-synced';
+
+export function cloudId(): string {
+  const have = normalizeId(localStorage.getItem(ID_KEY) ?? '');
+  if (have) return have;
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const id = Array.from(bytes, b => ID_ALPHABET[b & 31]).join('');
+  localStorage.setItem(ID_KEY, id);
+  return id;
+}
+/** Start over under a brand-new ID (the old save stays restorable with the old ID). */
+export function newCloudId() {
+  localStorage.removeItem(ID_KEY);
+  localStorage.removeItem(SYNC_KEY);
+  return cloudId();
+}
+export const displayId = () => formatId(cloudId());
+export const lastSynced = () => Number(localStorage.getItem(SYNC_KEY)) || 0;
+
+let inflight: Promise<Save | null> | null = null;
+let again = false;
+
+/** Upload the current save. Resolves with the cloud's copy if it was further along. */
+export function backup(): Promise<Save | null> {
+  if (inflight) { again = true; return inflight; }
+  inflight = (async () => {
+    try {
+      const local = load();
+      if (!local.history.length) return null; // nothing worth backing up yet
+      const res = await fetch('/api/save', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: cloudId(), save: local }),
+      });
+      if (!res.ok) return null;
+      localStorage.setItem(SYNC_KEY, String(Date.now()));
+      const { save: winner } = await res.json();
+      if (isAhead(winner, local)) { save(winner); return load(); }
+      return null;
+    } catch { return null; } // offline: try again later
+    finally {
+      inflight = null;
+      if (again) { again = false; void backup(); }
+    }
+  })();
+  return inflight;
+}
+
+export type RestoreResult = { ok: true; level: number } | { ok: false; reason: string };
+
+/** Download the save stored under `input` and make this device use that ID from now on. */
+export async function restore(input: string): Promise<RestoreResult> {
+  const id = normalizeId(input);
+  if (!id) return { ok: false, reason: "That doesn't look like a save ID." };
+  let res: Response;
+  try { res = await fetch(`/api/save?id=${id}`, { cache: 'no-store' }); }
+  catch { return { ok: false, reason: 'No connection. Try again when online.' }; }
+  if (res.status === 404) return { ok: false, reason: 'No save found for that ID.' };
+  if (!res.ok) return { ok: false, reason: 'The save server had a problem. Try again.' };
+  const { save: cloud } = await res.json();
+  localStorage.setItem(ID_KEY, id);
+  const local = load();
+  // Keep whichever is further along so a restore can never lose progress.
+  if (isAhead(cloud, local) || !isAhead(local, cloud)) { save(cloud); clearRun(); }
+  void backup();
+  return { ok: true, level: load().level };
+}
+
+addEventListener('online', () => void backup());
