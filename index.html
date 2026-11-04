@@ -15,10 +15,11 @@
   <body>
     <canvas id="cv"></canvas>
     <div id="hud" class="hidden">
-      <div class="lvl"><small>LEVEL</small><span id="level">1</span></div>
+      <div class="lvl"><small id="lvl-label">LEVEL</small><span id="level">1</span></div>
       <div class="prog"><div class="bar"><i id="progbar"></i></div><small id="rows">rows</small></div>
       <button id="pause" aria-label="Pause">II</button>
     </div>
+    <button id="colorbtn" class="hidden" aria-label="Change ball colour"><i></i><small>TAP TO SWAP</small></button>
     <div id="controls" class="hidden">
       <span id="ff">»</span>
       <button id="recall" aria-label="Bring balls home">⤓</button>
@@ -29,6 +30,7 @@
       <h1><span>BLASTER</span><span>BRICKS</span></h1>
       <p class="tag">Aim. Release. Watch it glow.</p>
       <button id="play" class="big">PLAY</button>
+      <button id="open-chal" class="big alt">CHALLENGES <span id="streak-badge"></span></button>
       <div id="menu-stats"></div>
       <p class="help">Drag to aim, release to fire. Clear every brick before one reaches the line.<br />
         <b class="pl">⟷</b> laser &nbsp; <b class="pm">×3</b> multiply &nbsp; <b class="pr">⟳</b> redirect &nbsp; <b class="pe">+1</b> extra ball</p>
@@ -53,6 +55,32 @@
       <div id="r-next"></div>
       <button id="r-go" class="big">NEXT</button>
       <button id="r-menu" class="chip">Menu</button>
+    </div>
+
+    <div id="chal" class="screen hidden scroll">
+      <div class="topbar"><button id="chal-back" class="chip">← Menu</button><button id="open-cos" class="chip">🎨 Cosmetics</button></div>
+      <h2>CHALLENGES</h2>
+      <div id="chal-meta"></div>
+      <div id="chal-cards"></div>
+      <p class="help small">Everyone gets the same boards. Play the daily to grow your streak. Playing the weekly banks a streak freeze (max 2) that covers a missed day.</p>
+    </div>
+
+    <div id="cresult" class="screen hidden">
+      <small id="c-tag"></small>
+      <h2 id="c-title"></h2>
+      <div id="c-stars"></div>
+      <div id="c-label"></div>
+      <ul id="c-goals"></ul>
+      <div id="c-extra"></div>
+      <button id="c-retry" class="big">TRY AGAIN</button>
+      <div class="row"><button id="c-share" class="chip">📋 Share result</button><button id="c-back" class="chip">Challenges</button></div>
+    </div>
+
+    <div id="cos" class="screen hidden scroll">
+      <div class="topbar"><button id="cos-back" class="chip">← Challenges</button><span id="cos-stars"></span></div>
+      <h2>COSMETICS</h2>
+      <h3>Balls</h3><div id="cos-ball" class="cosgrid"></div>
+      <h3>Backgrounds</h3><div id="cos-bg" class="cosgrid"></div>
     </div>
 
     <div id="paused" class="screen hidden">

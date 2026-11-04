@@ -1,14 +1,16 @@
 {
   "name": "blaster-bricks",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "icons": "node scripts/make-icons.mjs",
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "bot": "node --experimental-strip-types --no-warnings scripts/bot.ts"
+    "bot": "node --experimental-strip-types --no-warnings scripts/bot.ts",
+    "challenges": "node --experimental-strip-types --no-warnings scripts/challenges.ts",
+    "test": "node --experimental-strip-types --no-warnings scripts/test-meta.ts && node --experimental-strip-types --no-warnings scripts/test-sim.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

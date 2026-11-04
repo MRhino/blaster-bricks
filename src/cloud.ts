@@ -1,7 +1,7 @@
 // Cloud backup: the save is mirrored to /api/save under a random save ID that
 // lives on this device. Typing that ID on another device downloads the save.
 // Everything still works offline; uploads retry when the connection returns.
-import { ID_ALPHABET, normalizeId, formatId, isAhead } from './saveid';
+import { ID_ALPHABET, normalizeId, formatId, mergeSaves } from './saveid';
 import { load, save, clearRun, type Save } from './progress';
 
 const ID_KEY = 'bb-cloud-id';
@@ -41,7 +41,9 @@ export function backup(): Promise<Save | null> {
       if (!res.ok) return null;
       localStorage.setItem(SYNC_KEY, String(Date.now()));
       const { save: winner } = await res.json();
-      if (isAhead(winner, local)) { save(winner); return load(); }
+      // The server merged our copy with the cloud's; adopt it if it adds anything.
+      const merged = mergeSaves(load(), winner);
+      if (JSON.stringify(merged) !== JSON.stringify(load())) { save(merged); return load(); }
       return null;
     } catch { return null; } // offline: try again later
     finally {
@@ -66,8 +68,10 @@ export async function restore(input: string): Promise<RestoreResult> {
   const { save: cloud } = await res.json();
   localStorage.setItem(ID_KEY, id);
   const local = load();
-  // Keep whichever is further along so a restore can never lose progress.
-  if (isAhead(cloud, local) || !isAhead(local, cloud)) { save(cloud); clearRun(); }
+  // Merge so a restore can never lose progress on either side.
+  const merged = mergeSaves(cloud, local);
+  if (merged.level !== local.level) clearRun();
+  save(merged);
   void backup();
   return { ok: true, level: load().level };
 }

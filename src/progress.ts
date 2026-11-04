@@ -8,6 +8,7 @@
 // - The mid-level run is disposable: if it doesn't match the current sim, only
 //   the run is dropped, never the progress.
 import type { GameSnapshot } from './sim';
+import { cleanChallengeData, freshChallengeData, type ChallengeData } from './saveid';
 
 export interface Save {
   schema: number;
@@ -16,20 +17,22 @@ export interface Save {
   lastEff: number | null;
   attempt: number; // retries of the current level (changes the layout)
   best: number;
+  ch: ChallengeData; // challenge bests, streak, cosmetics (schema 2+)
 }
 
 const KEY = 'bb-save-v1';
 const BACKUP = 'bb-save-backup';
 const RUN = 'bb-run';
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 export const AVG_WINDOW = 20;
 
 // MIGRATIONS[n] upgrades a schema-n save to n+1. Add, never edit.
 const MIGRATIONS: Record<number, (s: any) => any> = {
   0: s => ({ ...s, schema: 1 }), // v0.1–v0.2 saves had no schema field
+  1: s => ({ ...s, schema: 2, ch: freshChallengeData() }), // v0.6: challenges
 };
 
-export const fresh = (): Save => ({ schema: SCHEMA, level: 1, history: [], lastEff: null, attempt: 0, best: 1 });
+export const fresh = (): Save => ({ schema: SCHEMA, level: 1, history: [], lastEff: null, attempt: 0, best: 1, ch: freshChallengeData() });
 
 function parse(raw: string | null): Save | null {
   if (!raw) return null;
@@ -45,6 +48,7 @@ function parse(raw: string | null): Save | null {
     out.lastEff = typeof s.lastEff === 'number' ? s.lastEff : null;
     out.attempt = Math.max(0, Math.floor(num(s.attempt, 0)));
     out.best = Math.max(out.level, Math.floor(num(s.best, 1)));
+    out.ch = cleanChallengeData(s.ch);
     // A save from a newer build (rolled back deploy): keep what we understand.
     return out;
   } catch { return null; }

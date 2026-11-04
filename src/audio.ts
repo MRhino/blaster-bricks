@@ -63,3 +63,12 @@ export const sfx = {
   fail() { [7, 4, 0, -5].forEach((s, i) => tone(392 * Math.pow(2, s / 12), 0.35, 'sine', 0.14, 1, i * 0.12)) },
   tap() { tone(700, 0.05, 'sine', 0.08) },
 };
+
+export const sfx2 = {
+  clang() { tone(180, 0.08, 'square', 0.04, 0.7); },
+  crack() { tone(1600, 0.12, 'triangle', 0.1, 0.5); },
+  shatter() { [0, 1, 2].forEach(i => tone(2400 - i * 500, 0.18, 'sawtooth', 0.05, 0.3, i * 0.03)); },
+  saved() { [0, 7, 12].forEach((s, i) => tone(880 * Math.pow(2, s / 12), 0.2, 'sine', 0.12, 1, i * 0.06)); },
+  boss() { tone(110, 0.12, 'sawtooth', 0.06, 0.8); },
+  bossDown() { [0, -5, -12, -17].forEach((s, i) => tone(220 * Math.pow(2, s / 12), 0.5, 'sawtooth', 0.1, 0.5, i * 0.1)); },
+};

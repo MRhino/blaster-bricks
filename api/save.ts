@@ -1,12 +1,15 @@
 // One private blob per save ID: saves/<ID>.json. No accounts, no personal data.
+//   PUT merges with the stored copy (mergeSaves), so nothing is ever dropped.
 //   GET  /api/save?id=<ID>        → the stored save, or 404
 //   PUT  /api/save  {id, save}    → stores it unless the stored copy is further along;
 //                                   always responds with whichever copy won.
 import { get, put } from '@vercel/blob';
-import { normalizeId, isAhead } from '../src/saveid.js';
+import { normalizeId, mergeSaves } from '../src/saveid.js';
 
 const MAX_BYTES = 32_000;
-const path = (id: string) => `saves/${id}.json`;
+// Preview/branch deploys keep their own copies so testing never touches real saves.
+const PREFIX = process.env.VERCEL_ENV === 'production' ? 'saves' : 'preview/saves';
+const path = (id: string) => `${PREFIX}/${id}.json`;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 
@@ -33,11 +36,12 @@ export async function PUT(req: Request) {
   if (!id || !save || typeof save !== 'object' || typeof save.level !== 'number' || !Array.isArray(save.history))
     return json({ error: 'bad save' }, 400);
   const existing = await read(id);
-  if (existing && isAhead(existing, save)) {
-    return json({ id, save: existing, kept: 'cloud' }); // stale device: don't clobber
-  }
-  await put(path(id), JSON.stringify(save), {
+  // Never lose anything: level progress from whichever copy is further along,
+  // plus every challenge best and the latest streak from both.
+  const merged = existing ? mergeSaves(save, existing) : save;
+  if (existing && JSON.stringify(merged) === JSON.stringify(existing)) return json({ id, save: existing, kept: 'cloud' });
+  await put(path(id), JSON.stringify(merged), {
     access: 'private', allowOverwrite: true, addRandomSuffix: false, contentType: 'application/json',
   });
-  return json({ id, save, kept: 'device' });
+  return json({ id, save: merged, kept: 'merged' });
 }
