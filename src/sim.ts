@@ -525,7 +525,7 @@ export class Game {
           if (made + 2 > room) break;
           for (const turn of [-0.22, 0.22]) {
             const cs = Math.cos(turn), sn = Math.sin(turn);
-            const nb: Ball = { x: x.x, y: x.y, vx: x.vx * cs - x.vy * sn, vy: x.vx * sn + x.vy * cs, clone: true, lastPower: cell.id, done: false };
+            const nb: Ball = { x: x.x, y: x.y, vx: x.vx * cs - x.vy * sn, vy: x.vx * sn + x.vy * cs, clone: true, lastPower: cell.id, done: false, color: x.color }; // keep the parent's colour
             this.fixAngle(nb);
             this.balls.push(nb);
             made++;

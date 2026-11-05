@@ -68,4 +68,16 @@ const up = (g: Game, color?: number) => { g.launchX = 350; g.launch(0.0001, -1, 
   assert.equal(g.phase, 'won');
   assert.ok(!g.board.some(r => r.some(c => c?.kind === 'boss')), 'boss cells cleared');
 }
+// ×3 copies keep the colour of the ball that triggered them
+{
+  const g = make({ colors: 2 });
+  g.board[5][3] = { id: 7, kind: 'power', hp: 0, max: 0, power: 'multi' };
+  g.board[0][0] = { id: 99, kind: 'brick', hp: 999, max: 999 };
+  g.launchX = 350; g.launch(0.0001, -1, 1);
+  let n = 0;
+  while (g.phase === 'fly' && !g.balls.some(b => b.clone) && n++ < 1e5) g.step();
+  const clones = g.balls.filter(b => b.clone);
+  assert.ok(clones.length > 0, 'multiplier fired');
+  assert.ok(clones.every(b => b.color === 1), `clones keep pink (got ${clones.map(b => b.color)})`);
+}
 console.log('all sim tests passed');
