@@ -39,6 +39,7 @@ export interface Rules {
   rush?: { speed: number; ramp: number }; // continuous descent in rows/sec, + ramp per minute
   boss?: { hp: number; crystalEvery: number };
   rushHp?: number; // base brick hp for rush rows
+  crystalHeal?: boolean; // crystals mend one crack after any turn they aren't hit
 }
 
 export interface Ball {
@@ -542,6 +543,8 @@ export class Game {
         break;
       }
     }
+    // Rush: lasers and redirects are single use, like multi and extra. Prisms stay.
+    if (this.isRush && cell.power !== 'prism') this.board[r][c] = null;
   }
 
   private damage(r: number, c: number, n: number) {
@@ -584,6 +587,8 @@ export class Game {
   }
 
   private endTurn() {
+    if (this.rules.crystalHeal) for (const row of this.board) for (const c of row)
+      if (c?.kind === 'crystal' && c.crackedTurn !== this.turns && c.hp < c.max) c.hp++;
     this.turns++;
     if (this.nextLaunchX !== null) this.launchX = this.nextLaunchX;
     if (this.isRush) { this.phase = 'aim'; return; } // rush: the board moves on its own clock

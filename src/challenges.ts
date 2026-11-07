@@ -150,11 +150,11 @@ export function dailyFor(d: Date): Challenge {
   const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
   const base = { seed, balls: BALLS, rows: 13, initial: 5, powerChance: 0.35 };
   if (mechanic === 'crystal') {
-    const spec = genBoard({ ...base, pressure: 0.95, density: 0.45, crystals: 0.45 });
+    const spec = genBoard({ ...base, pressure: 0.95, density: 0.45, crystals: 0.45, rules: { crystalHeal: true } });
     const half = Math.ceil((spec.crystals ?? 0) / 2);
     return {
       kind: 'daily', key, num, mechanic, title: 'Crystal Escort', ends: end, spec, par: spec.par,
-      blurb: 'Clear the bricks but protect the crystals: they score when they reach the line or survive the clear. Each turn you touch one it cracks; 3 cracks shatter it.',
+      blurb: 'Clear the bricks but protect the crystals: they score when they reach the line or survive the clear. Each turn you touch one it cracks; 3 cracks shatter it. Leave it alone for a turn and it mends one crack.',
       goals: ['Clear the board', `Save ${half}+ crystals`, `Save all ${spec.crystals} crystals`],
     };
   }
@@ -176,7 +176,7 @@ export function dailyFor(d: Date): Challenge {
   };
 }
 
-export const RUSH_STARS: [number, number, number] = [600, 1400, 2600];
+export const RUSH_STARS = { steel: [600, 1400, 2600], colour: [400, 900, 1800] } as const;
 
 export function weeklyFor(d: Date): Challenge {
   const wk = weekKeyOf(d);
@@ -192,7 +192,7 @@ export function weeklyFor(d: Date): Challenge {
   return {
     kind: 'weekly', key, num, mechanic: 'rush', twist, title: twist === 'colour' ? 'Colour Rush' : 'Steel Rush', ends: end, spec, par: 0,
     blurb: 'No turns. The bricks never stop sliding down. Fire as soon as your balls are home. Score = bricks broken + time survived.',
-    goals: RUSH_STARS.map(s => `Score ${s.toLocaleString()}`) as [string, string, string],
+    goals: RUSH_STARS[twist].map(s => `Score ${s.toLocaleString()}`) as [string, string, string],
   };
 }
 
@@ -245,7 +245,7 @@ export function scoreRun(ch: Challenge, g: Game): ChallengeResult {
     }
     case 'rush': {
       const score = Math.floor(g.destroyedHp + g.time * 5);
-      const stars = RUSH_STARS.filter(s => score >= s).length;
+      const stars = RUSH_STARS[ch.twist ?? 'steel'].filter(s => score >= s).length;
       return { stars, score, rank: stars * 1e6 + score, label: `${score.toLocaleString()} points · survived ${Math.floor(g.time)}s` };
     }
     case 'boss': {

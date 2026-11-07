@@ -80,4 +80,32 @@ const up = (g: Game, color?: number) => { g.launchX = 350; g.launch(0.0001, -1, 
   assert.ok(clones.length > 0, 'multiplier fired');
   assert.ok(clones.every(b => b.color === 1), `clones keep pink (got ${clones.map(b => b.color)})`);
 }
+// Escort crystals mend one crack after a turn they weren't hit, never past full
+{
+  const g = make({ crystalHeal: true });
+  g.board[0][0] = { id: 99, kind: 'brick', hp: 999, max: 999 };
+  const missed: Cell = { id: 1, kind: 'crystal', hp: 2, max: 3 };
+  const hit: Cell = { id: 2, kind: 'crystal', hp: 2, max: 3, crackedTurn: g.turns };
+  const full: Cell = { id: 3, kind: 'crystal', hp: 3, max: 3 };
+  g.board[3][1] = missed; g.board[3][2] = hit; g.board[3][3] = full;
+  (g as any).endTurn();
+  assert.deepEqual([missed.hp, hit.hp, full.hp], [3, 2, 3], 'only the untouched cracked crystal heals');
+}
+// Rush: lasers and redirects go after one touch, prisms stay; other modes keep them
+{
+  const touch = (rules: any, power: any) => {
+    const g = make(rules);
+    const cell: Cell = { id: 7, kind: 'power', hp: 0, max: 0, power, color: 0 };
+    g.board[4][3] = cell;
+    const at = (Game as any).cellCenter(4, 3); at.y += g.yOff;
+    (g as any).touchPower({ x: at.x, y: at.y, vx: 1, vy: -1, done: false }, cell, 4, 3);
+    return g.board[4][3];
+  };
+  const rush = { rush: { speed: 0.1, ramp: 0 } };
+  for (const p of ['laserH', 'laserV', 'redirect']) {
+    assert.equal(touch(rush, p), null, `${p} single use in rush`);
+    assert.ok(touch({}, p), `${p} stays outside rush`);
+  }
+  assert.ok(touch(rush, 'prism'), 'prism stays in rush');
+}
 console.log('all sim tests passed');
