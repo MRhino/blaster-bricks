@@ -442,9 +442,10 @@ function updateChallengeHud() {
       frac = 1 - (g.rowsLeft() / ch.spec.queue.length); break;
     case 'rush': {
       const score = Math.floor(g.destroyedHp + g.time * 5);
-      const next = RUSH_STARS.find(s => s > score) ?? RUSH_STARS[2];
+      const targets = RUSH_STARS[ch.twist ?? 'steel'];
+      const next = targets.find(s => s > score) ?? targets[2];
       text = `${score.toLocaleString()} PTS · ${Math.floor(g.time)}s · NEXT ★ ${next.toLocaleString()}`;
-      frac = Math.min(1, score / RUSH_STARS[2]); break;
+      frac = Math.min(1, score / targets[2]); break;
     }
     case 'boss':
       text = `WARDEN ${g.boss?.hp ?? 0} HP · TURN ${g.turns + (g.phase === 'fly' ? 1 : 0)}`;
