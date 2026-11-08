@@ -402,8 +402,13 @@ function renderChallenges() {
       <h4>${ch.title}</h4><p>${ch.blurb}</p><div class="goals">${goals}</div>
       <div class="foot"><span class="best">${best ? starStr(best.stars) : '☆☆☆'}</span>
       <button class="go" data-i="${i}">${best ? 'PLAY AGAIN' : 'PLAY'}</button></div>
-      ${best ? `<p>Best: ${best.label}</p>` : ''}</div>`;
+      ${best ? '<p class="best-label"></p>' : ''}</div>`;
   }).join('');
+  // Cloud-restored labels are untrusted text, never HTML.
+  for (const [i, card] of $('chal-cards').querySelectorAll('.card').entries()) {
+    const label = card.querySelector('.best-label');
+    if (label) label.textContent = `Best: ${progress.ch.best[list[i].key].label}`;
+  }
   for (const b of $('chal-cards').querySelectorAll<HTMLButtonElement>('.go'))
     b.addEventListener('click', () => { unlock(); sfx.tap(); startChallenge(list[Number(b.dataset.i)]); });
 }
@@ -486,8 +491,18 @@ function finishChallenge() {
   if (out.streakUp) extra.push(`🔥 Streak: ${progress.ch.streak.count} day${progress.ch.streak.count === 1 ? '' : 's'}${out.freezesUsed ? ` (used ${out.freezesUsed} ❄)` : ''}`);
   else if (ch.kind === 'daily' && !res.stars) extra.push('Get ★ on the daily to keep your streak going.');
   if (out.freezeEarned) extra.push(`❄ Streak freeze earned (${progress.ch.streak.freezes}/${MAX_FREEZES})`);
-  for (const u of unlocks) extra.push(`<span class="unlock">🎁 Unlocked: ${u.name} ${u.type === 'ball' ? 'balls' : 'background'}</span>`);
-  $('c-extra').innerHTML = extra.map(x => `<div>${x}</div>`).join('');
+  $('c-extra').replaceChildren(...extra.map(text => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div;
+  }));
+  for (const u of unlocks) {
+    const div = document.createElement('div'), span = document.createElement('span');
+    span.className = 'unlock';
+    span.textContent = `🎁 Unlocked: ${u.name} ${u.type === 'ball' ? 'balls' : 'background'}`;
+    div.appendChild(span);
+    $('c-extra').appendChild(div);
+  }
   $('c-share').dataset.text = shareText(ch, res);
   $('c-retry').textContent = res.stars === 3 ? 'PLAY AGAIN' : 'TRY AGAIN';
   show('cresult');
