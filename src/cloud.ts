@@ -30,10 +30,12 @@ let again = false;
 /** Upload the current save. Resolves with the cloud's copy if it was further along. */
 export function backup(): Promise<Save | null> {
   if (inflight) { again = true; return inflight; }
+  // Must stay outside the async block: returning before its first await would run
+  // `finally` before `inflight` is assigned and leave it stuck, blocking every later backup.
+  if (!load().history.length) return Promise.resolve(null); // nothing worth backing up yet
   inflight = (async () => {
     try {
       const local = load();
-      if (!local.history.length) return null; // nothing worth backing up yet
       const res = await fetch('/api/save', {
         method: 'PUT', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: cloudId(), save: local }),
