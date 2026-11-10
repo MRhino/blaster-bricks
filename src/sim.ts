@@ -115,11 +115,14 @@ export function mulberry32(seed: number) {
 // One scalar drives the whole level. 1.0 = "fair for an average player at this level".
 // Level adds slow, capped growth; skill (running average) and the last level nudge it.
 export function pressureFor(level: number, lastEff: number | null, skill: number | null): number {
-  const base = 0.78 + 0.22 * (1 - Math.exp(-(level - 1) / 18));
+  // Past 100 the ball/row caps are maxed, so level keeps adding steady growth here
+  // (and lifts the ceiling by the same amount) — levels 1–100 are unchanged.
+  const late = 0.006 * Math.max(0, level - 100);
+  const base = 0.78 + 0.22 * (1 - Math.exp(-(level - 1) / 18)) + late;
   const s = skill ?? 0.6;
   const l = lastEff ?? s;
   const p = base + (s - 0.6) * 0.7 + (l - 0.6) * 0.35;
-  return Math.min(1.6, Math.max(0.55, p));
+  return Math.min(1.6 + late, Math.max(0.55, p));
 }
 
 export function ballsFor(level: number): number {
